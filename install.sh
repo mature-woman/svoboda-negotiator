@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ -d author/project ]; then
-	mv author/project author/negotiatior
+	mv author/project author/negotiator
 fi
 
 if [ -d author ]; then

@@ -1,5 +1,0 @@
-{% block js %}
-{% for element in js %}
-<script {% if element.src %}src="{{ element.src }}"{% endif %} {% if element.type %}type="{{ element.type }}"{% endif %}>{{ element.innerText }}</script>
-{% endfor %}
-{% endblock %}
