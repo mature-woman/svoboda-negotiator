@@ -1,0 +1,37 @@
+@charset "UTF-8";
+
+@media (prefers-color-scheme: dark) {
+    :root {
+		--text-color: initial;
+		--text-color-hover: initial;
+		--text-color-active: initial;
+		--text-notice-color: initial;
+		--text-warning-color: initial;
+		--text-selected-color: initial;
+		--text-selected-background-color: initial;
+
+		--link-color: initial;
+		--link-color-hover: initial;
+		--link-color-active: initial;
+
+		color: var(--text-color);
+	}
+}
+
+@media (prefers-color-scheme: light) {
+	:root {
+		--text-color: initial;
+		--text-color-hover: initial;
+		--text-color-active: initial;
+		--text-notice-color: initial;
+		--text-warning-color: initial;
+		--text-selected-color: initial;
+		--text-selected-background-color: initial;
+
+		--link-color: initial;
+		--link-color-hover: initial;
+		--link-color-active: initial;
+
+		color: var(--text-color);
+	}
+}

@@ -1,0 +1,48 @@
+{
+	"name": "svoboda/negotiatior",
+	"description": "Chat-robot negotiator of the Svoboda organization",
+	"homepage": "https://git.mirzaev.sexy/svoboda/negotiatior",
+	"type": "site",
+	"keywords": [
+		"minimal"
+	],
+	"readme": "README.md",
+	"license": "WTFPL",
+	"authors": [
+		{
+			"name": "svoboda",
+			"email": "svoboda@gmail.com",
+			"homepage": "https://svoboda.page",
+			"role": "Programmer"
+		}
+	],
+	"support": {
+		"wiki": "https://git.mirzaev.sexy/svoboda/negotiatior/wiki",
+		"issues": "https://git.mirzaev.sexy/svoboda/negotiatior/issues"
+	},
+	"require": {
+		"php": "^8.4",
+		"triagens/arangodb": "^3.8",
+		"mirzaev/minimal": "^3.2.0",
+		"mirzaev/arangodb": "^1.3",		
+		"twig/twig": "^3.10",
+		"twig/extra-bundle": "^3.7",
+		"twig/intl-extra": "^3.10"
+	},
+	"require-dev": {
+		"phpunit/phpunit": "~9.5"
+	},
+	"autoload": {
+		"psr-4": {
+			"svoboda\\negotiatior\\": "svoboda/negotiatior/system"
+		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"svoboda\\negotiatior\\tests\\": "svoboda/negotiatior/tests"
+		}
+	},
+	"scripts": {
+		"pre-update-cmd": "./install.sh"
+	}
+}
