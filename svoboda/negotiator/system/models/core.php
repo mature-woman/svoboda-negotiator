@@ -7,34 +7,26 @@ namespace svoboda\negotiator\models;
 // Framework for PHP
 use mirzaev\minimal\model;
 
+// Baza database
+use mirzaev\baza\database,
+	mirzaev\baza\column,
+	mirzaev\baza\enumerations\encoding;
+
 // Built-in libraries
 use exception;
 
 /**
- * Models core
+ * Core
  *
  * @package svoboda\negotiator\models
  *
- * @method void __construct(bool $initialize) Constructor
+ * @method void __construct() Constructor
  *
  * @license http://www.wtfpl.net/ Do What The Fuck You Want To Public License
- * @author svoboda <mail@domain.zone>
+ * @author Arsen Mirzaev Tatyano-Muradovich <arsen@mirzaev.sexy>
  */
 class core extends model
 {
-	/**
-	 * Constructor
-	 *
-	 * @param bool $initialize Initialize a model?
-	 *
-	 * @return void
-	 */
-	public function __construct(bool $initialize = true)
-	{
-		// For the extends system
-		parent::__construct($initialize);
-	}
-
 	/**
 	 * Write
 	 *

@@ -28,10 +28,6 @@ enum language
 	 * @param language|null $language Language into which to translate
 	 *
 	 * @return string Translated label of the language
-   *
-	 * @todo
-	 * 1. More languages
-	 * 2. Cases???
 	 */
 	public function label(?language $language = language::en): string
 	{
@@ -45,6 +41,22 @@ enum language
 				language::en => 'Russian',
 				language::ru => 'Русский'
 			}
+		};
+	}
+
+	/**
+   * Flag
+   *
+	 * Initialize tge flag emoji of the language
+	 *
+	 * @return string The flag emoji of the language
+	 */
+	public function flag(): string
+	{
+		// Exit (success)
+		return match ($this) {
+			language::en => '🇺🇸',
+			language::ru => '🇷🇺'		
 		};
 	}
 }
