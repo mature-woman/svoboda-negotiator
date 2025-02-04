@@ -7,6 +7,9 @@ namespace svoboda\negotiator\models;
 // Files of the project
 use svoboda\negotiator\models\core;
 
+// Svoboda time
+use svoboda\time\statement as svoboda;
+
 // Baza database
 use mirzaev\baza\database,
 	mirzaev\baza\column,
@@ -34,7 +37,7 @@ final class account extends core
 	/**
 	 * File
 	 *
-	 * @var string $database Path to the accounts database file
+	 * @var string $database Path to the database file
 	 */
 	protected string $file = DATABASES . DIRECTORY_SEPARATOR . 'accounts.baza';
 
@@ -43,7 +46,7 @@ final class account extends core
 	 *
 	 * @var database $database The database
 	 */
-	public static database $database;
+	public protected(set) database $database;
 
 	/**
 	 * Constructor
@@ -53,20 +56,23 @@ final class account extends core
 	public function __construct()
 	{
 		// Initializing the database
-		static::$database = new database()
+		$this->database = new database()
 			->encoding(encoding::utf8)
 			->columns(
 				new column('identifier', type::integer_unsigned),
+				new column('identifier_telegram', type::integer),
+				new column('domain', type::string, ['length' => 32]),
 				new column('name_first', type::string, ['length' => 64]),
 				new column('name_second', type::string, ['length' => 64]),
-				new column('domain', type::string, ['length' => 32]),
 				new column('language', type::string, ['length' => 2]),
 				new column('robot', type::char),
 				new column('authorized_system', type::char),
 				new column('authorized_contact', type::char),
 				new column('authorized_request', type::char),
 				new column('authorized_settings', type::char),
-				new column('authorized_system_settings', type::char)
+				new column('authorized_system_settings', type::char),
+				new column('created', type::integer_unsigned),
+				new column('updated', type::integer_unsigned)
 			)
 			->connect($this->file);
 	}
@@ -87,7 +93,7 @@ final class account extends core
 	public function initialize(telegram $telegram): record
 	{
 		// Searching for the account in the database
-		$account = static::$database->read(filter: fn(record $record) => $record->identifier === $telegram->getId(), amount: 1)[0] ?? null;
+		$account = $this->database->read(filter: fn(record $record) => $record->identifier_telegram === $telegram->getId(), amount: 1)[0] ?? null;
 
 		if ($account instanceof record) {
 			// Found the account record
@@ -100,13 +106,14 @@ final class account extends core
 				// The telegram account was updated
 				
 				// Updating the account in the database
-				$updated = static::$database->read(
-					filter: fn(record $record) => $record->identifier === $telegram->getId(),
+				$updated = $this->database->read(
+					filter: fn(record $record) => $record->identifier_telegram === $telegram->getId(),
 					update: function (record &$record) use ($telegram){
 						// Writing new values into the record
 						$record->name_first = $telegram->getFirstName();
 						$record->name_second = $telegram->getLastName();
 						$record->domain = $telegram->getUsername();
+						$record->updated = svoboda::timestamp();
 					},
 					amount: 1
 				)[0] ?? null;
@@ -133,7 +140,7 @@ final class account extends core
 				// Registered the account
 
 				// Searching for the registered account in the database
-				$account = static::$database->read(filter: fn(record $record) => $record->identifier === $telegram->getId(), amount: 1)[0] ?? null;
+				$account = $this->database->read(filter: fn(record $record) => $record->identifier_telegram === $telegram->getId(), amount: 1)[0] ?? null;
 
 				if ($account instanceof record) {
 					// Found the registered account
@@ -162,12 +169,16 @@ final class account extends core
 	 *
 	 * @param telegram $telegram The telegram account
 	 *
-	 * @return bool Is the accound record created?
+	 * @return int|false The record identifier, if created
 	 */
-	public function registrate(telegram $telegram): bool
+	public function registrate(telegram $telegram): int|false
 	{
+		// Initializing the identifier
+		$identifier = $this->database->count() + 1;
+
 		// Initializing the record
-		$record = static::$database->record(
+		$record = $this->database->record(
+			$identifier,
 			(int) $telegram->getId(),
 			$telegram->getFirstName(),
 			$telegram->getLastName(),
@@ -178,13 +189,15 @@ final class account extends core
 			1,
 			1,
 			1,
-			0
+			0,
+			svoboda::timestamp(),
+			svoboda::timestamp()
 		);
 
 		// Creating the accound record in the database
-		$created = static::$database->write($record);
+		$created = $this->database->write($record);
 
 		// Exit (success)
-		return $created;
+		return $created ? $identifier : false;
 	}
 }

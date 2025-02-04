@@ -27,7 +27,8 @@
 		"mirzaev/minimal": "^3.4.0",
 		"badfarm/zanzara": "^0.9.1",
 		"react/filesystem": "^0.1.2",
-		"mirzaev/baza": "^3.1.0"
+		"mirzaev/baza": "^3.1.0",
+		"svoboda/time": "^1.0"
 	},
 	"require-dev": {
 		"phpunit/phpunit": "~9.5"

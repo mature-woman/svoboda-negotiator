@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace svoboda\negotiator\models\enumerations;
 
 /**
- * Session
+ * Entity
  *
- * Types of session verification
+ * Types of entities
  *
  * @package svoboda\negotiator\models\enumerations
  *
  * @license http://www.wtfpl.net/ Do What The Fuck You Want To Public License
- * @author svoboda <mail@domain.zone>
+ * @author Arsen Mirzaev Tatyano-Muradovich <arsen@mirzaev.sexy>
  */
-enum session
+enum entity
 {
-    case hash_only;
-    case hash_else_address;
+    case account;
+    case distribution;
 }

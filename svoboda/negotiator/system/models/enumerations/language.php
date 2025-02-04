@@ -13,7 +13,6 @@ namespace svoboda\negotiator\models\enumerations;
  *
  * @license http://www.wtfpl.net/ Do What The Fuck You Want To Public License
  * @author Arsen Mirzaev Tatyano-Muradovich <arsen@mirzaev.sexy>
- * @author svoboda <mail@domain.zone>
  */
 enum language
 {
@@ -47,7 +46,7 @@ enum language
 	/**
    * Flag
    *
-	 * Initialize tge flag emoji of the language
+	 * Initialize the flag emoji of the language
 	 *
 	 * @return string The flag emoji of the language
 	 */

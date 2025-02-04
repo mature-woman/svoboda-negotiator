@@ -6,23 +6,17 @@ namespace svoboda\negotiator\models\telegram;
 
 // Files of the project
 use svoboda\negotiator\models\core,
-	svoboda\negotiator\models\account,
+	svoboda\negotiator\models\distribution,
+	svoboda\negotiator\models\telegram\selections,
 	svoboda\negotiator\models\enumerations\language;
 
 // Framework for Telegram
-use Zanzara\Zanzara,
-	Zanzara\Context as context,
-	Zanzara\Telegram\Type\Input\InputFile as file_input,
-	Zanzara\Telegram\Type\File\Document as document,
-	Zanzara\Middleware\MiddlewareNode as node,
-	Zanzara\Telegram\Type\User as user;
+use Zanzara\Context as context,
+	Zanzara\Telegram\Type\Message as message,
+	Zanzara\Telegram\Type\Input\InputFile as file_input;
 
 // Baza database
 use mirzaev\baza\record;
-
-// Built-in libraries
-use Exception as exception,
-	Error as error;
 
 /**
  * Telegram commands
@@ -64,7 +58,7 @@ final class commands extends core
 				$context->sendMessage(<<<TXT
 				$title
 				TXT)
-					->then(function ($message) use ($context) {
+					->then(function (message $message) use ($context) {
 						// 
 					});
 			} else {
@@ -72,7 +66,7 @@ final class commands extends core
 
 				// Sending the message
 				$context->sendMessage('⚠️ *Failed to initialize localization*')
-					->then(function ($message) use ($context) {
+					->then(function (message $message) use ($context) {
 						// Ending the conversation process
 						$context->endConversation();
 					});
@@ -82,7 +76,7 @@ final class commands extends core
 
 			// Sending the message
 			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
-				->then(function ($message) use ($context) {
+				->then(function (message $message) use ($context) {
 					// Ending the conversation process
 					$context->endConversation();
 				});
@@ -115,7 +109,7 @@ final class commands extends core
 			$context->sendMessage(<<<TXT
 				*⚠️ Failed to initialize your Telegram account*
 				TXT)
-				->then(function ($message) use ($context) {
+				->then(function (message $message) use ($context) {
 					// 
 				});
 		} else {
@@ -123,7 +117,110 @@ final class commands extends core
 
 			// Sending the message
 			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
-				->then(function ($message) use ($context) {
+				->then(function (message $message) use ($context) {
+					// Ending the conversation process
+					$context->endConversation();
+				});
+		}
+	}
+
+	/**
+	 * Distributions
+	 *
+	 * Responce for the command: "/distributions"
+	 * 
+	 * Sends the distributions menu
+	 *
+	 * @param context $context Request data from Telegram
+	 *
+	 * @return void
+	 */
+	public static function distributions(context $context): void
+	{
+		// Initializing the account
+		$account = $context->get('account');
+
+		if ($account instanceof record) {
+			// Initialized the account
+
+			// Initializing language 
+			$language = $context->get('language');
+
+			if ($language instanceof language) {
+				// Initialized language
+
+				// Initializing localization 
+				$localization = $context->get('localization');
+
+				if ($localization) {
+					// Initialized localization
+
+					// Initializing the message title
+					$title = '🏘 *' . $localization['distributions_title'] . '*';
+
+					// Initializing the message description
+					$description = $localization['distributions_description'];
+
+					// Initializing the distribution model
+					$model = new distribution;
+
+					// Initializing the message "registered" row
+					$registered = '*' . $localization['distributions_registered'] . ':* ' . $model->database->count();
+
+					// Sending the message
+					$context->sendMessage(
+						<<<TXT
+						$title
+						
+						$registered
+
+						$description
+						TXT,
+						[
+							'reply_markup' => [
+								'inline_keyboard' => [
+									[
+										[
+											'text' => '📋 ' . $localization['distributions_button_register'],
+											'callback_data' => 'distribution_registration_start'
+										],
+										[
+											'text' => '🔎 ' . $localization['distributions_button_search'],
+											'callback_data' => 'distribution_search_start'
+										]
+									]
+								],
+								'disable_notification' => true,
+								'remove_keyboard' => true
+							],
+						]
+					);
+				} else {
+					// Not initialized localization
+
+					// Sending the message
+					$context->sendMessage('⚠️ *Failed to initialize localization*')
+						->then(function (message $message) use ($context) {
+							// Ending the conversation process
+							$context->endConversation();
+						});
+				}
+			} else {
+				// Not initialized language
+
+				// Sending the message
+				$context->sendMessage('⚠️ *Failed to initialize language*')
+					->then(function (message $message) use ($context) {
+						// Ending the conversation process
+						$context->endConversation();
+					});
+			}
+		} else {
+			// Not initialized the account
+
+			// Sending the message
+			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
+				->then(function (message $message) use ($context) {
 					// Ending the conversation process
 					$context->endConversation();
 				});
@@ -135,7 +232,7 @@ final class commands extends core
 	 *
 	 * Responce for the command: "/language"
 	 * 
-	 * Sends a language selection menu
+	 * Send the language selection menu
 	 *
 	 * @param context $context Request data from Telegram
 	 *
@@ -149,58 +246,41 @@ final class commands extends core
 		if ($account instanceof record) {
 			// Initialized the account
 
-			// Initializing localization 
-			$localization = $context->get('localization');
+			// Initializing language 
+			$language = $context->get('language');
 
-			if ($localization) {
-				// Initialized localization
+			if ($language instanceof language) {
+				// Initialized language
 
-				// Declaring the buffer of generated keyboard with languages
-				$keyboard = [];
+				// Initializing localization 
+				$localization = $context->get('localization');
 
-				// Initializing the iterator of rows
-				$row = 0;
+				if ($localization) {
+					// Initialized localization
 
-				foreach (language::cases() as $language) {
-					// Iterating over languages
+					// Sending the language selection
+					selections::language(
+						context: $context,
+						prefix: 'settings_language_',
+						title: '🌏 *' . $localization['settings_select_language_title'] . '*',
+						description: '🌏 *' . $localization['settings_select_language_description'] . '*'
+					);
+				} else {
+					// Not initialized localization
 
-					// Initializing the row
-					$keyboard[$row] ??= [];
-
-					// Writing the language choose button into the buffer of generated keyboard with languages
-					$keyboard[$row][] = [
-						'text' => ($language->flag() ? $language->flag() . ' ' : '') . $language->label($language),
-						'callback_data' => 'settings_language_' . $language->name
-					];
-
-					// When reaching 4 buttons in a row, move to the next row
-					if (count($keyboard[$row]) === 4) ++$row;
+					// Sending the message
+					$context->sendMessage('⚠️ *Failed to initialize localization*')
+						->then(function (message $message) use ($context) {
+							// Ending the conversation process
+							$context->endConversation();
+						});
 				}
-
-				// Writing the button for helping lozalizing
-				$keyboard[++$row] = [
-					[
-						'text' => '🗂 ' . $localization['settings_language_add'],
-						'url' => 'https://git.svoboda.works/svoboda/negotiator/src/branch/stable/svoboda/negotiator/system/localizations'
-					]
-				];
-
-				// Sending the message
-				$context->sendMessage(
-					'🌏 *' . $localization['settings_language_title'] . '*',
-					[
-						'reply_markup' => [
-							'inline_keyboard' =>  $keyboard
-						],
-						'disable_notification' => true
-					]
-				);
 			} else {
-				// Not initialized localization
+				// Not initialized language
 
 				// Sending the message
-				$context->sendMessage('⚠️ *Failed to initialize localization*')
-					->then(function ($message) use ($context) {
+				$context->sendMessage('⚠️ *Failed to initialize language*')
+					->then(function (message $message) use ($context) {
 						// Ending the conversation process
 						$context->endConversation();
 					});
@@ -210,7 +290,7 @@ final class commands extends core
 
 			// Sending the message
 			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
-				->then(function ($message) use ($context) {
+				->then(function (message $message) use ($context) {
 					// Ending the conversation process
 					$context->endConversation();
 				});
@@ -255,7 +335,7 @@ final class commands extends core
 
 				// Sending the message
 				$context->sendMessage('⚠️ *Failed to initialize localization*')
-					->then(function ($message) use ($context) {
+					->then(function (message $message) use ($context) {
 						// Ending the conversation process
 						$context->endConversation();
 					});
@@ -265,7 +345,7 @@ final class commands extends core
 
 			// Sending the message
 			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
-				->then(function ($message) use ($context) {
+				->then(function (message $message) use ($context) {
 					// Ending the conversation process
 					$context->endConversation();
 				});

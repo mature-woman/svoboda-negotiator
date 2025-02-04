@@ -13,17 +13,14 @@ use svoboda\negotiator\models\core,
 // Framework for Telegram
 use Zanzara\Zanzara,
 	Zanzara\Context as context,
-	Zanzara\Telegram\Type\Input\InputFile as file_input,
-	Zanzara\Telegram\Type\File\Document as document,
-	Zanzara\Middleware\MiddlewareNode as node,
-	Zanzara\Telegram\Type\User as user;
+	Zanzara\Telegram\Type\Message as message,
+	Zanzara\Middleware\MiddlewareNode as node;
 
 // Baza database
 use mirzaev\baza\record;
 
 // Built-in libraries
-use Exception as exception,
-	Error as error;
+use Error as error;
 
 /**
  * Telegram settings
@@ -58,9 +55,12 @@ final class settings extends core
 
 			if ($localization) {
 				// Initialized localization
+				
+				// Initializing the account model
+				$model = new account();
 
 				// Updating the account in the database
-				$updated = account::$database->read(
+				$updated = $model->database->read(
 					filter: fn(record $record) => $record->identifier === $account->identifier,
 					update: function (record &$record) use ($language) {
 						// Writing new language value into the record
@@ -86,6 +86,7 @@ final class settings extends core
 
 							if ($localization) {
 								// Initialized localization
+
 								try {
 									// Initializing the old language
 									$old = language::{$account->language};
@@ -94,8 +95,8 @@ final class settings extends core
 									$new = language::{$updated->language};
 
 									// Sending the message
-									$context->sendMessage('✅ *' . $localization['settings_language_update_success'] . '* ' . ($old->flag() ? $old->flag() . ' ' : '') . $old->label($new) . ' » ' . ($new->flag() ? $new->flag() . ' ' : '') . $new->label($new))
-										->then(function ($message) use ($context) {
+									$context->sendMessage('✅ *' . $localization['settings_language_update_success'] . '* ' . ($old->flag() ? $old->flag() . ' ' : '') . $old->label($new) . ' → *' . ($new->flag() ? $new->flag() . ' ' : '') . $new->label($new) . '*')
+										->then(function (message $message) use ($context) {
 											// Ending the conversation process
 											$context->endConversation();
 										});
@@ -104,7 +105,7 @@ final class settings extends core
 
 									// Sending the message
 									$context->sendMessage('❎ *' . $localization['settings_language_update_fail'])
-										->then(function ($message) use ($context) {
+										->then(function (message $message) use ($context) {
 											// Ending the conversation process
 											$context->endConversation();
 										});
@@ -114,7 +115,7 @@ final class settings extends core
 
 								// Sending the message
 								$context->sendMessage('⚠️ *Failed to initialize localization*')
-									->then(function ($message) use ($context) {
+									->then(function (message $message) use ($context) {
 										// Ending the conversation process
 										$context->endConversation();
 									});
@@ -126,7 +127,7 @@ final class settings extends core
 
 					// Sending the message
 					$context->sendMessage('❎ *' . $localization['settings_language_update_fail'])
-						->then(function ($message) use ($context) {
+						->then(function (message $message) use ($context) {
 							// Ending the conversation process
 							$context->endConversation();
 						});
@@ -136,7 +137,7 @@ final class settings extends core
 
 				// Sending the message
 				$context->sendMessage('⚠️ *Failed to initialize localization*')
-					->then(function ($message) use ($context) {
+					->then(function (message $message) use ($context) {
 						// Ending the conversation process
 						$context->endConversation();
 					});
@@ -146,7 +147,7 @@ final class settings extends core
 
 			// Sending the message
 			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
-				->then(function ($message) use ($context) {
+				->then(function (message $message) use ($context) {
 					// Ending the conversation process
 					$context->endConversation();
 				});
