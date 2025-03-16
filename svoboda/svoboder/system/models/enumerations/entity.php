@@ -14,8 +14,9 @@ namespace svoboda\svoboder\models\enumerations;
  * @license http://www.wtfpl.net/ Do What The Fuck You Want To Public License
  * @author Arsen Mirzaev Tatyano-Muradovich <arsen@mirzaev.sexy>
  */
-enum entity
+enum entity: int
 {
-    case account;
-    case distribution;
+	case system = 0;
+	case account = 1;
+	case distribution = 2;
 }

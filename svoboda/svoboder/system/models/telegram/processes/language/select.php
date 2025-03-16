@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace svoboda\svoboder\models\telegram;
+namespace svoboda\svoboder\models\telegram\processes\language;
 
 // Files of the project
 use svoboda\svoboder\models\core,
@@ -16,28 +16,29 @@ use Zanzara\Context as context,
 use mirzaev\baza\record;
 
 /**
- * Telegram selections
+ * Telegram language select 
  *
- * @package svoboda\svoboder\models\telegram
+ * @package svoboda\svoboder\models\telegram\processes\language
  *
  * @license http://www.wtfpl.net/ Do What The Fuck You Want To Public License
  * @author Arsen Mirzaev Tatyano-Muradovich <arsen@mirzaev.sexy>
  */
-final class selections extends core
+final class select extends core
 {
 	/**
 	 * Language
 	 *
-	 * The language choose menu
+	 * Send the language choose menu
 	 *
 	 * @param context $context Request data from Telegram
 	 * @param string $prefix Prefix for 'callback_data' (`$prefix . $language->name`)
 	 * @param string $title Title of the message
 	 * @param string $description Description of the message
+	 * @param array $exclude Languages that will be excluded ['ru', 'en'...]
 	 *
 	 * @return void
 	 */
-	public static function language(context $context, string $prefix, string $title, string $description): void
+	public static function menu(context $context, string $prefix, string $title, string $description, array $exclude = []): void
 	{
 		// Initializing the account
 		$account = $context->get('account');
@@ -75,6 +76,9 @@ final class selections extends core
 					foreach ($languages as $language) {
 						// Iterating over languages
 
+						// Skipping excluded languages
+						if (array_search($language->name, $exclude, strict: true) !== false) continue;
+
 						// Initializing the row
 						$keyboard[$row] ??= [];
 
@@ -89,7 +93,7 @@ final class selections extends core
 					}
 
 					// Writing the button for helping lozalizing
-					$keyboard[++$row] = [
+					$keyboard[$row === 0 && empty($keyboard[0]) ? 0 : ++$row] = [
 						[
 							'text' => '🗂 ' . $localization['select_language_button_add'],
 							'url' => 'https://git.svoboda.works/svoboda/svoboder/src/branch/stable/svoboda/svoboder/system/localizations'
@@ -112,6 +116,8 @@ final class selections extends core
 					// Sending the message
 					$context->sendMessage('⚠️ *Failed to initialize localization*')
 						->then(function (message $message) use ($context) {
+							// Sended the message
+
 							// Ending the conversation process
 							$context->endConversation();
 						});
@@ -122,6 +128,8 @@ final class selections extends core
 				// Sending the message
 				$context->sendMessage('⚠️ *Failed to initialize language*')
 					->then(function (message $message) use ($context) {
+						// Sended the message
+
 						// Ending the conversation process
 						$context->endConversation();
 					});
@@ -132,6 +140,8 @@ final class selections extends core
 			// Sending the message
 			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
 				->then(function (message $message) use ($context) {
+					// Sended the message
+
 					// Ending the conversation process
 					$context->endConversation();
 				});

@@ -66,6 +66,8 @@ final class middlewares extends core
 			// Sending the message
 			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
 				->then(function (message $message) use ($context) {
+					// Sended the message
+
 					// Ending the conversation process
 					$context->endConversation();
 				});
@@ -120,6 +122,8 @@ final class middlewares extends core
 			// Sending the message
 			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
 				->then(function (message $message) use ($context) {
+					// Sended the message
+
 					// Ending the conversation process
 					$context->endConversation();
 				});
@@ -175,6 +179,8 @@ final class middlewares extends core
 						// Sending the message
 						$context->sendMessage('⚠️ *Failed to initialize localization*')
 							->then(function (message $message) use ($context) {
+								// Sended the message
+
 								// Ending the conversation process
 								$context->endConversation();
 							});
@@ -185,6 +191,8 @@ final class middlewares extends core
 					// Sending the message
 					$context->sendMessage('⚠️ *Failed to initialize the localization file*')
 						->then(function (message $message) use ($context) {
+							// Sended the message
+
 							// Ending the conversation process
 							$context->endConversation();
 						});
@@ -195,6 +203,8 @@ final class middlewares extends core
 				// Sending the message
 				$context->sendMessage('⚠️ *Failed to initialize language*')
 					->then(function (message $message) use ($context) {
+						// Sended the message
+
 						// Ending the conversation process
 						$context->endConversation();
 					});
@@ -205,6 +215,8 @@ final class middlewares extends core
 			// Sending the message
 			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
 				->then(function (message $message) use ($context) {
+					// Sended the message
+
 					// Ending the conversation process
 					$context->endConversation();
 				});
@@ -249,6 +261,8 @@ final class middlewares extends core
 					// Sending the message
 					$context->sendMessage('⛔ *' . $localization['not_authorized_system'] . '*')
 						->then(function (message $message) use ($context) {
+							// Sended the message
+
 							// Ending the conversation process
 							$context->endConversation();
 						});
@@ -261,6 +275,8 @@ final class middlewares extends core
 					// Sending the message
 					$context->sendMessage('⚠️ *Failed to initialize localization*')
 						->then(function (message $message) use ($context) {
+							// Sended the message
+
 							// Ending the conversation process
 							$context->endConversation();
 						});
@@ -272,6 +288,8 @@ final class middlewares extends core
 			// Sending the message
 			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
 				->then(function (message $message) use ($context) {
+					// Sended the message
+
 					// Ending the conversation process
 					$context->endConversation();
 				});
@@ -316,6 +334,8 @@ final class middlewares extends core
 					// Sending the message
 					$context->sendMessage('⛔ *' . $localization['not_authorized_contact'] . '*')
 						->then(function (message $message) use ($context) {
+							// Sended the message
+
 							// Ending the conversation process
 							$context->endConversation();
 						});
@@ -328,6 +348,8 @@ final class middlewares extends core
 					// Sending the message
 					$context->sendMessage('⚠️ *Failed to initialize localization*')
 						->then(function (message $message) use ($context) {
+							// Sended the message
+
 							// Ending the conversation process
 							$context->endConversation();
 						});
@@ -339,6 +361,8 @@ final class middlewares extends core
 			// Sending the message
 			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
 				->then(function (message $message) use ($context) {
+					// Sended the message
+
 					// Ending the conversation process
 					$context->endConversation();
 				});
@@ -346,16 +370,16 @@ final class middlewares extends core
 	}
 
 	/**
-	 * Request (middleware)
+	 * Join (middleware)
 	 *
-	 * Check the account for access to request to the organization
+	 * Check the account for access to join to distributions
 	 *
 	 * @param context $context
 	 * @param node $next
 	 *
 	 * @return void
 	 */
-	public static function request(context $context, node $next): void
+	public static function join(context $context, node $next): void
 	{
 		// Is the process stopped?
 		if ($context->get('stop')) return;
@@ -366,39 +390,43 @@ final class middlewares extends core
 		if ($account instanceof record) {
 			// Initialized the account
 
-			if ($account->authorized_request) {
-				// Authorized the account to request to the organization
+			// Initializing localization
+			$localization = $context->get('localization');
 
-				// Continuation of the process
-				$next($context);
-			} else {
-				// Not authorized the account to request to the organization
+			if ($localization) {
+				// Initialized localization
 
-				// Initializing localization
-				$localization = $context->get('localization');
+				if ($account->authorized_joins) {
+					// Authorized the account to joint to distributions
 
-				if ($localization) {
-					// Initialized localization
+					// Continuation of the process
+					$next($context);
+				} else {
+					// Not authorized the account to joint to distributions
 
 					// Sending the message
-					$context->sendMessage('⛔ *' . $localization['not_authorized_request'] . '*')
+					$context->sendMessage('⛔ *' . $localization['not_authorized_joins'] . '*')
 						->then(function (message $message) use ($context) {
+							// Sended the message
+
 							// Ending the conversation process
 							$context->endConversation();
 						});
 
 					// Stopping the process
 					$context->set('stop', true);
-				} else {
-					// Not initialized localization
-
-					// Sending the message
-					$context->sendMessage('⚠️ *Failed to initialize localization*')
-						->then(function (message $message) use ($context) {
-							// Ending the conversation process
-							$context->endConversation();
-						});
 				}
+			} else {
+				// Not initialized localization
+
+				// Sending the message
+				$context->sendMessage('⚠️ *Failed to initialize localization*')
+					->then(function (message $message) use ($context) {
+						// Sended the message
+
+						// Ending the conversation process
+						$context->endConversation();
+					});
 			}
 		} else {
 			// Not initialized the account
@@ -406,6 +434,8 @@ final class middlewares extends core
 			// Sending the message
 			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
 				->then(function (message $message) use ($context) {
+					// Sended the message
+
 					// Ending the conversation process
 					$context->endConversation();
 				});
@@ -450,6 +480,8 @@ final class middlewares extends core
 					// Sending the message
 					$context->sendMessage('⛔ *' . $localization['not_authorized_settings'] . '*')
 						->then(function (message $message) use ($context) {
+							// Sended the message
+
 							// Ending the conversation process
 							$context->endConversation();
 						});
@@ -462,6 +494,8 @@ final class middlewares extends core
 					// Sending the message
 					$context->sendMessage('⚠️ *Failed to initialize localization*')
 						->then(function (message $message) use ($context) {
+							// Sended the message
+
 							// Ending the conversation process
 							$context->endConversation();
 						});
@@ -473,6 +507,8 @@ final class middlewares extends core
 			// Sending the message
 			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
 				->then(function (message $message) use ($context) {
+					// Sended the message
+
 					// Ending the conversation process
 					$context->endConversation();
 				});
@@ -517,6 +553,8 @@ final class middlewares extends core
 					// Sending the message
 					$context->sendMessage('⛔ *' . $localization['not_authorized_system_settings'] . '*')
 						->then(function (message $message) use ($context) {
+							// Sended the message
+
 							// Ending the conversation process
 							$context->endConversation();
 						});
@@ -529,6 +567,8 @@ final class middlewares extends core
 					// Sending the message
 					$context->sendMessage('⚠️ *Failed to initialize localization*')
 						->then(function (message $message) use ($context) {
+							// Sended the message
+
 							// Ending the conversation process
 							$context->endConversation();
 						});
@@ -540,6 +580,81 @@ final class middlewares extends core
 			// Sending the message
 			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
 				->then(function (message $message) use ($context) {
+					// Sended the message
+
+					// Ending the conversation process
+					$context->endConversation();
+				});
+		}
+	}
+
+	/**
+	 * Distributions administration (middleware)
+	 *
+	 * Check the account for access to distributions administration
+	 *
+	 * @param context $context
+	 * @param node $next
+	 *
+	 * @return void
+	 */
+	public static function distributions_administration(context $context, node $next): void
+	{
+		// Is the process stopped?
+		if ($context->get('stop')) return;
+
+		// Initializing the account
+		$account = $context->get('account');
+
+		if ($account instanceof record) {
+			// Initialized the account
+
+			if ($account->authorized_system_distributions) {
+				// Authorized the account to distributions administration
+
+				// Continuation of the process
+				$next($context);
+			} else {
+				// Not authorized the account to distributions administration
+
+				// Initializing localization
+				$localization = $context->get('localization');
+
+				if ($localization) {
+					// Initialized localization
+
+					// Sending the message
+					$context->sendMessage('⛔ *' . $localization['not_authorized_system_distributions'] . '*')
+						->then(function (message $message) use ($context) {
+							// Sended the message
+
+							// Ending the conversation process
+							$context->endConversation();
+						});
+
+					// Stopping the process
+					$context->set('stop', true);
+				} else {
+					// Not initialized localization
+
+					// Sending the message
+					$context->sendMessage('⚠️ *Failed to initialize localization*')
+						->then(function (message $message) use ($context) {
+							// Sended the message
+
+							// Ending the conversation process
+							$context->endConversation();
+						});
+				}
+			}
+		} else {
+			// Not initialized the account
+
+			// Sending the message
+			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
+				->then(function (message $message) use ($context) {
+					// Sended the message
+
 					// Ending the conversation process
 					$context->endConversation();
 				});

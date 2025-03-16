@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace svoboda\svoboder\models;
 
 // Files of the project
-use svoboda\svoboder\models\core;
+use svoboda\svoboder\models\core,
+	svoboda\svoboder\models\account\localization;
 
 // Svoboda time
 use svoboda\time\statement as svoboda;
@@ -49,6 +50,13 @@ final class account extends core
 	public protected(set) database $database;
 
 	/**
+	 * Localization
+	 *
+	 * @var localization $localization The localizations implementator
+	 */
+	public protected(set) localization $localization;
+
+	/**
 	 * Constructor
 	 *
 	 * @return void
@@ -67,18 +75,21 @@ final class account extends core
 				new column('language', type::string, ['length' => 2]),
 				new column('robot', type::char),
 				new column('authorized_system', type::char),
-				new column('authorized_contact', type::char),
-				new column('authorized_request', type::char),
+				new column('authorized_messages', type::char),
+				new column('authorized_joins', type::char),
 				new column('authorized_settings', type::char),
 				new column('authorized_system_accounts', type::char),
 				new column('authorized_system_distributions', type::char),
 				new column('authorized_system_members', type::char),
 				/* new column('authorized_system_', type::char), */
 				new column('authorized_system_settings', type::char),
-				new column('created', type::integer_unsigned),
-				new column('updated', type::integer_unsigned)
+				new column('updated', type::integer_unsigned),
+				new column('created', type::integer_unsigned)
 			)
 			->connect($this->file);
+
+		// Initializing the localizations implementator
+		$this->localization = new localization;
 	}
 
 	/**
@@ -201,10 +212,18 @@ final class account extends core
 			svoboda::timestamp()
 		);
 
-		// Creating the accound record in the database
+		// Creating the record in the database
 		$created = $this->database->write($record);
 
 		// Exit (success)
 		return $created ? $identifier : false;
+	}
+
+	public function localizations(): array|false
+	{
+
+
+		// Exit (fail)
+		return false;
 	}
 }

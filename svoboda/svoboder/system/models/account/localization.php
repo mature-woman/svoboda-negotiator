@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace svoboda\svoboder\models\localizations;
+namespace svoboda\svoboder\models\account;
 
 // Files of the project
 use svoboda\svoboder\models\core,
@@ -26,21 +26,21 @@ use Exception as exception,
 	RuntimeException as exception_runtime;
 
 /**
- * Distribution
+ * Localization
  *
- * @package svoboda\svoboder\models\localizations
+ * @package svoboda\svoboder\models\account
  *
  * @license http://www.wtfpl.net/ Do What The Fuck You Want To Public License
  * @author Arsen Mirzaev Tatyano-Muradovich <arsen@mirzaev.sexy>
  */
-final class distribution extends core
+final class localization extends core
 {
 	/**
 	 * File
 	 *
 	 * @var string $database Path to the database file
 	 */
-	protected string $file = DATABASES . DIRECTORY_SEPARATOR . 'localizations' . DIRECTORY_SEPARATOR . 'distributions.baza';
+	protected string $file = DATABASES . DIRECTORY_SEPARATOR . 'accounts' . DIRECTORY_SEPARATOR . 'localizations.baza';
 
 	/**
 	 * Database
@@ -61,11 +61,11 @@ final class distribution extends core
 			->encoding(encoding::utf8)
 			->columns(
 				new column('identifier', type::integer_unsigned),
-				new column('distribution', type::integer_unsigned),
+				new column('account', type::integer_unsigned),
 				new column('language', type::string, ['length' => 2]),
-				new column('name', type::string, ['length' => 32]),
-				new column('created', type::integer_unsigned),
-				new column('updated', type::integer_unsigned)
+				new column('name', type::string, ['length' => 128]),
+				new column('updated', type::integer_unsigned),
+				new column('created', type::integer_unsigned)
 			)
 			->connect($this->file);
 	}
@@ -73,15 +73,15 @@ final class distribution extends core
 	/**
 	 * Create
 	 *
-	 * Creates the distribution localization record in the database
+	 * Creates the account localization record in the database
 	 *
-	 * @param int $distribution Identifier of the distribution
+	 * @param int $account Identifier of the account
 	 * @param language $language Language
-	 * @param string $name Name
+	 * @param string $name Name of the account
 	 *
 	 * @return int|false The record identifier, if created
 	 */
-	public function create(int $distribution, language $language, string $name): int|false
+	public function create(int $account, language $language, string $name): int|false
 	{
 		// Initializing the identifier
 		$identifier = $this->database->count() + 1;
@@ -89,14 +89,14 @@ final class distribution extends core
 		// Initializing the record
 		$record = $this->database->record(
 			$identifier,
-			$distribution,
+			$account,
 			$language->name,
 			$name,
 			svoboda::timestamp(),
 			svoboda::timestamp()
 		);
 
-		// Creating the accound record in the database
+		// Creating the record in the database
 		$created = $this->database->write($record);
 
 		// Exit (success)

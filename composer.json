@@ -30,7 +30,8 @@
 		"mirzaev/baza": "^3.1.0",
 		"svoboda/time": "^1.0",
 		"badfarm/zanzara": "^0.9.1",
-		"react/filesystem": "^0.1.2"
+		"react/filesystem": "^0.1.2",
+		"react/async": "^4.3"
 	},
 	"autoload": {
 		"psr-4": {

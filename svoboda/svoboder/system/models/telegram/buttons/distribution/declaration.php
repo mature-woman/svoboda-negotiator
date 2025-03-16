@@ -8,9 +8,8 @@ namespace svoboda\svoboder\models\telegram\buttons\distribution;
 use svoboda\svoboder\models\core,
 	svoboda\svoboder\models\account,
 	svoboda\svoboder\models\distribution,
-	svoboda\svoboder\models\telegram\selections,
-	svoboda\svoboder\models\telegram\processes\distribution\registration as process_distribution_registration,
-	svoboda\svoboder\models\localization\distribution as distribution_localization,
+	svoboda\svoboder\models\telegram\processes\language\select as process_language_select,
+	svoboda\svoboder\models\telegram\processes\distribution\declaration as process_distribution_declaration,
 	svoboda\svoboder\models\enumerations\language;
 
 // Framework for Telegram
@@ -21,14 +20,14 @@ use Zanzara\Context as context,
 use mirzaev\baza\record;
 
 /**
- * Telegram distribution registration buttons
+ * Telegram distribution declaration buttons
  *
  * @package svoboda\svoboder\models\telegram\buttons\distribution
  *
  * @license http://www.wtfpl.net/ Do What The Fuck You Want To Public License
  * @author Arsen Mirzaev Tatyano-Muradovich <arsen@mirzaev.sexy>
  */
-final class registration extends core
+final class declaration extends core
 {
 	/**
 	 * Language
@@ -60,25 +59,25 @@ final class registration extends core
 					// Initialized localization
 
 					// Reading from the telegram user buffer
-					$context->getUserDataItem('distribution_registration')
+					$context->getUserDataItem(process_distribution_declaration::PROCESS)
 						->then(function ($distribution) use ($context, $account, $localization) {
 							// Readed from the telegram user buffer
 
 							if ($distribution) {
-								// Found started registration process
+								// Found started declaration process
 
 								// Sending the language selection
-								selections::language(
+								process_language_select::menu(
 									context: $context,
-									prefix: 'distribution_registration_select_language_',
-									title: '🌏 *' . $localization['distribution_registration_select_language_title'] . '*',
-									description: '🌏 *' . $localization['distribution_registration_select_language_description'] . '*'
+									prefix: 'distribution_declaration_select_language_',
+									title: '🌏 *' . $localization['distribution_declaration_select_language_title'] . '*',
+									description: '🌏 *' . $localization['distribution_declaration_select_language_description'] . '*'
 								);
 							} else {
-								// Not found started registration process
+								// Not found started declaration process
 
 								// Sending the message
-								$context->sendMessage('⚠️ *' . $localization['distribution_registration_not_started'] . '*');
+								$context->sendMessage('⚠️ *' . $localization['distribution_declaration_not_started'] . '*');
 							}
 						});
 				} else {
@@ -137,26 +136,26 @@ final class registration extends core
 				// Initialized localization
 
 				// Reading from the telegram user buffer
-				$context->getUserDataItem('distribution_registration')
+				$context->getUserDataItem(process_distribution_declaration::PROCESS)
 					->then(function ($distribution) use ($context, $account, $localization) {
 						// Readed from the telegram user buffer
 
 						if ($distribution) {
-							// Found started registration process
+							// Found started declaration process
 
 							// Sending the message
-							$context->sendMessage('📄 *' . $localization['distribution_registration_name_request'] . '*')
+							$context->sendMessage('📄 *' . $localization['distribution_declaration_name_request'] . '*')
 								->then(function (message $message) use ($context) {
 									// Sended the message
 
-									// Writing into the distribution registration buffer
-									$context->nextStep([process_distribution_registration::class, 'name']);
+									// Writing into the distribution declaration buffer
+									$context->nextStep([process_distribution_declaration::class, 'name']);
 								});
 						} else {
-							// Not found started registration process
+							// Not found started declaration process
 
 							// Sending the message
-							$context->sendMessage('⚠️ *' . $localization['distribution_registration_not_started'] . '*');
+							$context->sendMessage('⚠️ *' . $localization['distribution_declaration_not_started'] . '*');
 						}
 					});
 			} else {
@@ -205,18 +204,18 @@ final class registration extends core
 				// Initialized localization
 
 				// Reading from the telegram user buffer
-				$context->getUserDataItem('distribution_registration')
+				$context->getUserDataItem(process_distribution_declaration::PROCESS)
 					->then(function ($distribution) use ($context, $account, $localization) {
 						// Readed from the telegram user buffer
 
 						if ($distribution) {
-							// Found started registration process
+							// Found started declaration process
 
 							// Initializing the message title
-							$title = '🗺 *' . $localization['distribution_registration_location_send_title'] . '*';
+							$title = '🗺 *' . $localization['distribution_declaration_location_send_title'] . '*';
 
 							// Initializing the message description
-							$description = $localization['distribution_registration_location_send_description'];
+							$description = $localization['distribution_declaration_location_send_description'];
 
 							// Sending the message
 							$context->sendMessage(
@@ -230,7 +229,7 @@ final class registration extends core
 										'keyboard' => [
 											[
 												[
-													'text' => '🗺 ' . $localization['distribution_registration_button_location_send'],
+													'text' => '🗺 ' . $localization['distribution_declaration_button_location_send'],
 													'request_location' => true
 												]
 											],
@@ -242,14 +241,14 @@ final class registration extends core
 							)->then(function (message $message) use ($context) {
 								// Sended the message
 
-								// Writing into the distribution registration buffer
-								$context->nextStep([process_distribution_registration::class, 'location']);
+								// Writing into the distribution declaration buffer
+								$context->nextStep([process_distribution_declaration::class, 'location']);
 							});
 						} else {
-							// Not found started registration process
+							// Not found started declaration process
 
 							// Sending the message
-							$context->sendMessage('⚠️ *' . $localization['distribution_registration_not_started'] . '*');
+							$context->sendMessage('⚠️ *' . $localization['distribution_declaration_not_started'] . '*');
 						}
 					});
 			} else {

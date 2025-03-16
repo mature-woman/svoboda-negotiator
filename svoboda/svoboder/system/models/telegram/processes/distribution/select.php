@@ -9,7 +9,7 @@ use svoboda\svoboder\models\core,
 	svoboda\svoboder\models\account,
 	svoboda\svoboder\models\distribution,
 	svoboda\svoboder\models\member,
-	svoboda\svoboder\models\telegram\buttons\distribution\search as button_distribution_search,
+	svoboda\svoboder\models\telegram\buttons\distribution\select as button_distribution_select,
 	svoboda\svoboder\models\enumerations\language,
 	svoboda\svoboder\models\telegram\commands,
 	svoboda\svoboder\models\traits\coordinates;
@@ -29,14 +29,14 @@ use Exception as exception,
 	Error as error;
 
 /**
- * Distribution search process
+ * Distribution select process
  *
  * @package svoboda\svoboder\models\telegram\processes\distribution
  *
  * @license http://www.wtfpl.net/ Do What The Fuck You Want To Public License
  * @author Arsen Mirzaev Tatyano-Muradovich <arsen@mirzaev.sexy>
  */
-final class search extends core
+final class select extends core
 {
 	use coordinates {
 		coordinates::distance as vincenty;
@@ -47,18 +47,22 @@ final class search extends core
 	 *
 	 * @var const string PROCESS Name of the process in the telegram user buffer
 	 */
-	public const string PROCESS = 'distribution_search';
+	public const string PROCESS = 'distribution_select';
 
 	/**
 	 * Start
 	 *
-	 * Starting the distribution search process
+	 * Starting the distribution select process
 	 *
 	 * @param context $context Request data from Telegram
+	 * @param callable $select The distribution selection function (context $context, array $distribution = ['distribution', 'localization'])
+	 * @param callable $delete The distribution deletion function (context $context)
+	 * @param callable $cancel The process canceling function (context $context)
+	 * @param string|null $description Description of the message
 	 *
 	 * @return void
 	 */
-	public static function start(context $context): void
+	public static function start(context $context, callable $select, callable $delete, callable $cancel, ?string $description = null): void
 	{
 		// Initializing the account
 		$account = $context->get('account');
@@ -80,11 +84,11 @@ final class search extends core
 
 					// Reading from the telegram user buffer
 					$context->getUserDataItem(static::PROCESS)
-						->then(function (?array $search) use ($context, $account, $language, $localization) {
+						->then(function (?array $_select) use ($context, $account, $language, $localization, $select, $delete, $cancel, $description) {
 							// Readed from the telegram user buffer
 
-							if ($search) {
-								// Found started search process
+							if ($_select) {
+								// Found started select process
 
 								// Sending the message
 								$context->sendMessage('🗂 *' . $localization[static::PROCESS . '_continiued'] . '*')
@@ -95,32 +99,49 @@ final class search extends core
 										static::menu($context);
 									});
 							} else {
-								// Not found started search process
+								// Not found started select process
 
-								// Initializing the distribution search buffer
-								$search = [
+								// Initializing the distribution select buffer
+								$_select = [
 									'name' => null,
 									'location' => [
 										'latitude' => null,
 										'longitude' => null,
-										'distance' => DISTRIBUTIONS_SEARCH_DISTRIBUTION_DISTANCE
+										'distance' => DISTRIBUTIONS_SELECT_DISTRIBUTION_DISTANCE
+									],
+									'events' => [
+										'select' => $select,
+										'delete' => $delete,
+										'cancel' => $cancel
 									],
 									'page' => 0
 								];
 
 								// Writing to the telegram user buffer
-								$context->setUserDataItem(static::PROCESS, $search)
-									->then(function () use ($context, $account, $localization) {
+								$context->setUserDataItem(static::PROCESS, $_select)
+									->then(function () use ($context, $account, $localization, $description) {
 										// Writed to the telegram user buffer
 
-										// Sending the message
-										$context->sendMessage('🗂 *' . $localization[static::PROCESS . '_started'] . '*')
-											->then(function (message $message) use ($context, $account, $localization) {
-												// Sended the message
+										// Initializing title for the message
+										$title = '🗂 *' . $localization[static::PROCESS . '_started'] . '*';
 
-												// Sending the list of found distributions and menu
-												static::menu($context);
-											});
+										// Sending the message
+										$context->sendMessage(
+											empty($description)
+												?
+												$title
+												:
+												<<<TXT
+												$title
+
+												$description
+												TXT
+										)->then(function (message $message) use ($context, $account, $localization) {
+											// Sended the message
+
+											// Sending the list of found distributions and menu
+											static::menu($context);
+										});
 									});
 							}
 						});
@@ -163,15 +184,242 @@ final class search extends core
 	}
 
 	/**
-	 * End
+	 * Select
 	 *
-	 * Ending the distribution search process
+	 * End the distribution select process 
+	 * and process the distribution selection telegram button listener
 	 *
 	 * @param context $context Request data from Telegram
 	 *
 	 * @return void
 	 */
-	public static function end(context $context): void
+	public static function select(context $context): void
+	{
+		// Initializing the account
+		$account = $context->get('account');
+
+		if ($account instanceof record) {
+			// Initialized the account
+
+			// Initializing language 
+			$language = $context->get('language');
+
+			if ($language instanceof language) {
+				// Initialized language
+
+				// Initializing localization 
+				$localization = $context->get('localization');
+
+				if ($localization) {
+					// Initialized localization
+
+					// Reading from the telegram user buffer
+					$context->getUserDataItem(static::PROCESS)
+						->then(function (?array $select) use ($context, $language, $localization) {
+							// Readed from the telegram user buffer
+
+							if ($select) {
+								// Found started select process
+
+								// Declaring the target distribution 
+								$distribution = [
+									'distribution' => null,
+									'localization' => null
+								];
+
+								// Initializing the message text
+								$text = $context->getCallbackQuery()?->getMessage()?->getText();
+
+								if (!empty($text)) {
+									// Initialized the message text
+
+									// Searching for the distribution identifier
+									preg_match('/^(\d)+[\w\s]+$/mu', $text, $matches);
+
+									// Initializing the distribution identifier
+									$identifier = $matches[1] ?? null;
+
+									if (!empty($identifier)) {
+										// Initialized the distribution identifier
+
+										// Type conversion
+										$identifier = (int) $identifier;
+
+										// Initializing the distribution model
+										$model_distribution = new distribution;
+
+										// Initializing the distribution
+										$distribution['distribution'] = $model_distribution->database->read(
+											filter: fn(record $record) => $record->identifier === $identifier,
+											amount: 1
+										)[0] ?? null;
+
+										if ($distribution['distribution'] instanceof record) {
+											// Initialized the distribution
+
+											// Searching for the distribution localizations records
+											$distribution_localizations = $model_distribution->localization->database->read(
+												filter: fn(record $localization) => $localization->distribution === $distribution['distribution']->identifier,
+												amount: MEMBERS_SEARCH_DISTRIBUTION_LOCALIZATIONS_AMOUNT
+											);
+
+											if (count($distribution_localizations) > 0) {
+												// Initialized the distributions localizations
+
+												foreach ($distribution_localizations as $record) {
+													// Iterating over localizations
+
+													if ($record->language === $language->name) {
+														// Found localization by the account language
+
+														// Initializing localization by the account language
+														$distribution['localization'] = $record;
+
+														// Exit (success)
+														break;
+													}
+												}
+												if (is_null($distribution['localization'])) {
+													// Not initialized localization by the account language
+
+													foreach ($distribution_localizations as $record) {
+														// Iterating over localizations
+
+														if ($record->language === 'en') {
+															// Found localization by english language
+
+															// Initializing localization by english language
+															$distribution['localization'] = $record;
+
+															// Exit (success)
+															break;
+														}
+													}
+
+													if (is_null($distribution['localization'])) {
+														// Not initialized localization by english language
+
+														// Initializing the account model
+														$model_account = new account;
+
+														// Initializing the distribution creator account
+														$creator = $model_account->database->read(
+															filter: fn(record $account) => $account->identifier === $distribution['distribution']->creator,
+															amount: 1
+														)[0] ?? null;
+
+														if ($creator instanceof record) {
+															// Initialized the distribution creator account
+
+															foreach ($distribution_localizations as $record) {
+																// Iterating over localizations
+
+																if ($record->language === $creator->language) {
+																	// Found localization by the distribution creator account language
+
+																	// Initializing localization by the distribution creator account language
+																	$distribution['localization'] = $record;
+
+																	// Exit (success)
+																	break;
+																}
+															}
+														}
+
+														if (is_null($distribution['localization'])) {
+															// Not initialized localization by the distribution creator account language
+
+															// Initializing localization by the first found record
+															$distribution['localization'] = $distribution_localizations[0];
+														}
+													}
+												}
+											}
+										}
+
+										// Deleting from the telegram user buffer
+										$context->deleteUserDataItem(static::PROCESS)
+											->then(function () use ($context, $select, $language, $localization, $distribution) {
+												// Deleted from the telegram user buffer
+
+												// Sending the message
+												$context->sendMessage('🗂 *' . $localization[static::PROCESS . '_ended'] . '*')
+													->then(function (message $message) use ($context, $select, $distribution) {
+														// Sended the message
+
+														// Ending the conversation process
+														$context->endConversation();
+
+														// Processing the event
+														$select['events']['select'](context: $context, distribution: $distribution);
+													});
+											});
+									} else {
+										// Not initialized the distribution identifier
+
+										// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+									}
+								} else {
+									// Not initialized the message text
+
+									// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+								}
+							} else {
+								// Not found started select process
+
+								// Ending the conversation process
+								$context->endConversation();
+							}
+						});
+				} else {
+					// Not initialized localization
+
+					// Sending the message
+					$context->sendMessage('⚠️ *Failed to initialize localization*')
+						->then(function (message $message) use ($context) {
+							// Sended the message
+
+							// Ending the conversation process
+							$context->endConversation();
+						});
+				}
+			} else {
+				// Not initialized language
+
+				// Sending the message
+				$context->sendMessage('⚠️ *Failed to initialize language*')
+					->then(function (message $message) use ($context) {
+						// Sended the message
+
+						// Ending the conversation process
+						$context->endConversation();
+					});
+			}
+		} else {
+			// Not initialized the account
+
+			// Sending the message
+			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
+				->then(function (message $message) use ($context) {
+					// Sended the message
+
+					// Ending the conversation process
+					$context->endConversation();
+				});
+		}
+	}
+
+	/**
+	 * Delete
+	 *
+	 * End the distribution select process 
+	 * and process the distribution deletion telegram button listener
+	 *
+	 * @param context $context Request data from Telegram
+	 *
+	 * @return void
+	 */
+	public static function delete(context $context): void
 	{
 		// Initializing the account
 		$account = $context->get('account');
@@ -187,37 +435,116 @@ final class search extends core
 
 				// Reading from the telegram user buffer
 				$context->getUserDataItem(static::PROCESS)
-					->then(function (?array $search) use ($context, $localization) {
+					->then(function (?array $select) use ($context, $localization) {
 						// Readed from the telegram user buffer
 
-						if ($search) {
-							// Found started search process
+						if ($select) {
+							// Found started select process
 
 							// Deleting from the telegram user buffer
-							$context->deleteUserDataItem(static::PROCESS, $search)
-								->then(function () use ($context, $search, $localization) {
+							$context->deleteUserDataItem(static::PROCESS, $select)
+								->then(function () use ($context, $select, $localization) {
 									// Deleted from the telegram user buffer
 
 									// Sending the message
 									$context->sendMessage('🗂 *' . $localization[static::PROCESS . '_ended'] . '*')
-										->then(function (message $message) use ($context) {
+										->then(function (message $message) use ($context, $select) {
 											// Sended the message
 
 											// Ending the conversation process
 											$context->endConversation();
 
-											// Sending the distributions menu
-											commands::distributions($context);
+											// Processing the event
+											$select['events']['delete'](context: $context);
 										});
 								});
 						} else {
-							// Not found started search process
+							// Not found started select process
 
 							// Ending the conversation process
 							$context->endConversation();
+						}
+					});
+			} else {
+				// Not initialized localization
 
-							// Sending the distributions menu
-							commands::distributions($context);
+				// Sending the message
+				$context->sendMessage('⚠️ *Failed to initialize localization*')
+					->then(function (message $message) use ($context) {
+						// Sended the message
+
+						// Ending the conversation process
+						$context->endConversation();
+					});
+			}
+		} else {
+			// Not initialized the account
+
+			// Sending the message
+			$context->sendMessage('⚠️ *Failed to initialize your Telegram account*')
+				->then(function (message $message) use ($context) {
+					// Sended the message
+
+					// Ending the conversation process
+					$context->endConversation();
+				});
+		}
+	}
+
+	/**
+	 * Cancel
+	 *
+	 * End the distribution select process 
+	 * and process the distribution canceling telegram button listener
+	 *
+	 * @param context $context Request data from Telegram
+	 *
+	 * @return void
+	 */
+	public static function cancel(context $context): void
+	{
+		// Initializing the account
+		$account = $context->get('account');
+
+		if ($account instanceof record) {
+			// Initialized the account
+
+			// Initializing localization 
+			$localization = $context->get('localization');
+
+			if ($localization) {
+				// Initialized localization
+
+				// Reading from the telegram user buffer
+				$context->getUserDataItem(static::PROCESS)
+					->then(function (?array $select) use ($context, $localization) {
+						// Readed from the telegram user buffer
+
+						if ($select) {
+							// Found started select process
+
+							// Deleting from the telegram user buffer
+							$context->deleteUserDataItem(static::PROCESS, $select)
+								->then(function () use ($context, $select, $localization) {
+									// Deleted from the telegram user buffer
+
+									// Sending the message
+									$context->sendMessage('🗂 *' . $localization[static::PROCESS . '_ended'] . '*')
+										->then(function (message $message) use ($context, $select) {
+											// Sended the message
+
+											// Ending the conversation process
+											$context->endConversation();
+
+											// Processing the event
+											$select['events']['cancel'](context: $context);
+										});
+								});
+						} else {
+							// Not found started select process
+
+							// Ending the conversation process
+							$context->endConversation();
 						}
 					});
 			} else {
@@ -277,29 +604,29 @@ final class search extends core
 
 					// Reading from the telegram user buffer
 					$context->getUserDataItem(static::PROCESS)
-						->then(function (?array $search) use ($context, $account, $language, $localization) {
+						->then(function (?array $select) use ($context, $account, $language, $localization) {
 							// Readed from the telegram user buffer
 
-							if ($search) {
-								// Found started search process
+							if ($select) {
+								// Found started select process
 
 								// Initializing the buffer of generated keyboard with languages
 								$keyboard = [
 									[
 										[
-											'text' => empty($search['name']) ? '🔴 ' . $localization[static::PROCESS . '_button_name'] : '🟢 ' . $localization['distribution_search_button_name'] . ': ' . $search['name'],
+											'text' => empty($select['name']) ? '🔴 ' . $localization[static::PROCESS . '_button_name'] : '🟢 ' . $localization['distribution_select_button_name'] . ': ' . $select['name'],
 											'callback_data' => static::PROCESS . '_name'
 										]
 									],
 									[
 										[
-											'text' => empty($search['location']['latitude']) || empty($search['location']['longitude']) ? '🔴 ' . $localization[static::PROCESS . '_button_location'] : '🟢 ' . $localization['distribution_search_button_location'] . ': ' . $search['location']['latitude'] . ', ' . $search['location']['longitude'],
+											'text' => empty($select['location']['latitude']) || empty($select['location']['longitude']) ? '🔴 ' . $localization[static::PROCESS . '_button_location'] : '🟢 ' . $localization['distribution_select_button_location'] . ': ' . $select['location']['latitude'] . ', ' . $select['location']['longitude'],
 											'callback_data' => static::PROCESS . '_location'
 										]
 									],
 									[
 										[
-											'text' => empty($search['location']['distance']) ? '🔴 ' . $localization[static::PROCESS . '_button_distance'] : '🟢 ' . $localization['distribution_search_button_distance'] . ': ' . $search['location']['distance'] . ' ' . $localization['distribution_search_km'],
+											'text' => empty($select['location']['distance']) ? '🔴 ' . $localization[static::PROCESS . '_button_distance'] : '🟢 ' . $localization['distribution_select_button_distance'] . ': ' . $select['location']['distance'] . ' ' . $localization['distribution_select_km'],
 											'callback_data' => static::PROCESS . '_distance'
 										]
 									]
@@ -307,43 +634,43 @@ final class search extends core
 
 								// Ending the conversation process
 								$context->endConversation()
-									->then(function () use ($context, $account, $language, $localization, $search, $keyboard) {
+									->then(function () use ($context, $account, $language, $localization, $select, $keyboard) {
 										// Deinitialized the conversation process
 
 										// Initializing the distribution model
 										$model_distribution = new distribution;
 
 										// Initializing amount of readed distributions per page
-										$page = DISTRIBUTIONS_SEARCH_PAGE;
+										$page = DISTRIBUTIONS_SELECT_PAGE;
 
 										if (
-											empty($search['name']) &&
-											empty($search['location']['latitude']) &&
-											empty($search['location']['longitude'])
+											empty($select['name']) &&
+											empty($select['location']['latitude']) &&
+											empty($select['location']['longitude'])
 										) {
-											// Each search parameter is empty
+											// Each select parameter is empty
 
 											// Search for distributions
 											$distributions = $model_distribution->database->read(
 												amount: $page + 1,
-												offset: $search['page'] < 1 ? 0 : $page * $search['page']
+												offset: $select['page'] < 1 ? 0 : $page * $select['page']
 											);
 										} else {
-											// The search buffer has at least one parameter
+											// The select buffer has at least one parameter
 
 											// Search for distributions
 											$distributions = $model_distribution->database->read(
-												filter: function (record $distribution) use ($search, $model_distribution) {
+												filter: function (record $distribution) use ($select, $model_distribution) {
 													// Initializing the matched buffer
 													$matched = false;
 
-													if (!empty($search['name'])) {
-														// Requested search by name
+													if (!empty($select['name'])) {
+														// Requested select by name
 
 														// Initializing localizations
 														$localizations = $model_distribution->localization->database->read(
 															filter: fn(record $localization) => $localization->distribution === $distribution->identifier,
-															amount: DISTRIBUTIONS_SEARCH_DISTRIBUTION_LOCALIZATIONS_AMOUNT
+															amount: DISTRIBUTIONS_SELECT_DISTRIBUTION_LOCALIZATIONS_AMOUNT
 														);
 
 														// Initializing the result status
@@ -358,7 +685,7 @@ final class search extends core
 															foreach ($parts as $part) {
 																// Iterating over localization name parts
 
-																if (levenshtein($part, $search['name']) <= DISTRIBUTIONS_SEARCH_DISTRIBUTION_NAME_LEVENSHTEIN_DISTANCE) {
+																if (levenshtein($part, $select['name']) <= DISTRIBUTIONS_SELECT_DISTRIBUTION_NAME_LEVENSHTEIN_DISTANCE) {
 																	// Names matched by Levenshtein function
 
 																	// Reinitializing the matched buffer
@@ -384,19 +711,19 @@ final class search extends core
 													}
 
 													if (
-														!empty($search['location']['latitude']) &&
-														!empty($search['location']['longitude']) &&
-														!empty($search['location']['distance'])
+														!empty($select['location']['latitude']) &&
+														!empty($select['location']['longitude']) &&
+														!empty($select['location']['distance'])
 													) {
-														// Requested search by location
+														// Requested select by location
 
 														if (
 															static::vincenty(
-																$search['location']['latitude'],
-																$search['location']['longitude'],
+																$select['location']['latitude'],
+																$select['location']['longitude'],
 																$distribution->latitude,
 																$distribution->longitude
-															) <= $search['location']['distance'] * 1000
+															) <= $select['location']['distance'] * 1000
 														) {
 															// Matched by distance to distribution
 
@@ -414,7 +741,7 @@ final class search extends core
 													return $matched;
 												},
 												amount: $page + 1,
-												offset: $search['page'] < 1 ? 0 : $page * $search['page']
+												offset: $select['page'] < 1 ? 0 : $page * $select['page']
 											);
 										}
 
@@ -439,7 +766,7 @@ final class search extends core
 													'remove_keyboard' => true
 												],
 											]
-										)->then(function (message $message) use ($context, $account, $language, $localization, $search, $page, $next, $distributions, $model_distribution) {
+										)->then(function (message $message) use ($context, $account, $language, $localization, $select, $page, $next, $distributions, $model_distribution) {
 											// Sended the message
 
 											if (count($distributions) > 0) {
@@ -457,7 +784,7 @@ final class search extends core
 													// Initializing localizations
 													$localizations = $model_distribution->localization->database->read(
 														filter: fn(record $localization) => $localization->distribution === $distribution->identifier,
-														amount: DISTRIBUTIONS_SEARCH_DISTRIBUTION_LOCALIZATIONS_AMOUNT
+														amount: DISTRIBUTIONS_SELECT_DISTRIBUTION_LOCALIZATIONS_AMOUNT
 													);
 
 													if (count($localizations) > 0) {
@@ -545,42 +872,16 @@ final class search extends core
 															});
 													}
 
-													// Searching for the member record
+													// Search for the member record
 													$member = $model_member->database->read(
 														filter: fn(record $member) => $member->distribution === $distribution->identifier && $member->account === $account->identifier,
 														amount: 1
 													)[0] ?? null;
 
-													// Searching for the another member records
-													$another = $model_member->database->read(
-														filter: fn(record $member) => $member->distribution !== $distribution->identifier && $member->account === $account->identifier && $member->status !== 0,
-														amount: 1
-													)[0] ?? null;
-
 													// Initializing buffer of keyboard
 													$keyboard = static::keyboard(
-														distribution: $distribution,
-														member: $another ?? $member,
-														localization: $localization,
-														messages: $account->authorized_messages === 1,
-														joins: $account->authorized_joins === 1,
+														localization: $localization
 													);
-
-													/* if ($account->authorized_system_distributions) {
-														// Authorized access to distribution administration
-
-														// Initializing identifier of the row for administration buttons
-														$identifier = count($keyboard);
-
-														// Initializing the row for administration buttons
-														$keyboard[$identifier] ??= [];
-
-														// Initializing the distribution accepting toggle button
-														$keyboard[$identifier][] = [
-															'text' => $distribution->recognized ? '🏠 ' . $localization[static::PROCESS . '_button_recognized'] : '🏚 ' . $localization['distribution_search_button_not_recognized'],
-															'callback_data' => static::PROCESS . '_trust_toggle'
-														];
-													} */
 
 													// Sending the message
 													await($context->sendMessage(
@@ -611,8 +912,12 @@ final class search extends core
 																'inline_keyboard' => [
 																	[
 																		[
-																			'text' => '🔒 ' . $localization[static::PROCESS . '_button_end'],
-																			'callback_data' => static::PROCESS . '_end'
+																			'text' => '🔥 ' . $localization[static::PROCESS . '_button_delete'],
+																			'callback_data' => static::PROCESS . '_delete'
+																		],
+																		[
+																			'text' => '❌ ' . $localization[static::PROCESS . '_button_cancel'],
+																			'callback_data' => static::PROCESS . '_cancel'
 																		]
 																	],
 																	[
@@ -643,8 +948,12 @@ final class search extends core
 																'inline_keyboard' => [
 																	[
 																		[
-																			'text' => '🔒 ' . $localization[static::PROCESS . '_button_end'],
-																			'callback_data' => static::PROCESS . '_end'
+																			'text' => '🔥 ' . $localization[static::PROCESS . '_button_delete'],
+																			'callback_data' => static::PROCESS . '_delete'
+																		],
+																		[
+																			'text' => '❌ ' . $localization[static::PROCESS . '_button_cancel'],
+																			'callback_data' => static::PROCESS . '_cancel'
 																		]
 																	]
 																],
@@ -671,8 +980,13 @@ final class search extends core
 															'inline_keyboard' => [
 																[
 																	[
-																		'text' => '🔒 ' . $localization[static::PROCESS . '_button_end'],
-																		'callback_data' => static::PROCESS . '_end'
+																		'text' => '🔥 ' . $localization[static::PROCESS . '_button_delete'],
+																		'callback_data' => static::PROCESS . '_delete'
+																	],
+
+																	[
+																		'text' => '❌ ' . $localization[static::PROCESS . '_button_cancel'],
+																		'callback_data' => static::PROCESS . '_cancel'
 																	]
 																]
 															],
@@ -691,7 +1005,7 @@ final class search extends core
 										});
 									});
 							} else {
-								// Not found started search process
+								// Not found started select process
 
 								// Sending the message
 								$context->sendMessage('⚠️ *' . $localization[static::PROCESS . '_not_started'] . '*')
@@ -747,7 +1061,7 @@ final class search extends core
 	/**
 	 * Name
 	 *
-	 * Write search name into the distribution search buffer
+	 * Write select name into the distribution select buffer
 	 *
 	 * @param context $context Request data from Telegram
 	 *
@@ -769,17 +1083,17 @@ final class search extends core
 
 				// Reading from the telegram user buffer
 				$context->getUserDataItem(static::PROCESS)
-					->then(function ($search) use ($context, $localization) {
+					->then(function ($select) use ($context, $localization) {
 						// Readed from the telegram user buffer
 
-						if ($search) {
-							// Found started search process
+						if ($select) {
+							// Found started select process
 
-							// Initializing the new search name
+							// Initializing the new select name
 							$new = $context->getMessage()->getText();
 
 							if (!empty($new)) {
-								// Initialized the new search name
+								// Initialized the new select name
 
 								if (mb_strlen($new) >= 3) {
 									// Passed minimum length check
@@ -816,14 +1130,14 @@ final class search extends core
 											// Not found restricted characters
 
 											try {
-												// Initializing the old search name
-												$old = empty($search['name']) ? '_' . $localization['empty'] . '_' : $search['name'];
+												// Initializing the old select name
+												$old = empty($select['name']) ? '_' . $localization['empty'] . '_' : $select['name'];
 
-												// Writing into the distribution search process buffer
-												$search['name'] = $new;
+												// Writing into the distribution select process buffer
+												$select['name'] = $new;
 
 												// Writing to the telegram user buffer
-												$context->setUserDataItem(static::PROCESS, $search)
+												$context->setUserDataItem(static::PROCESS, $select)
 													->then(function () use ($context, $localization, $new, $old) {
 														// Writed to the telegram user buffer
 
@@ -832,12 +1146,12 @@ final class search extends core
 															->then(function (message $message) use ($context) {
 																// Sended the message
 
-																// Sending the distribution search menu
+																// Sending the distribution select menu
 																static::menu($context);
 															});
 													});
 											} catch (error $error) {
-												// Failed to send the message about search name update
+												// Failed to send the message about select name update
 
 												// Sending the message
 												$context->sendMessage('❎ *' . $localization[static::PROCESS . '_name_update_fail'])
@@ -869,8 +1183,8 @@ final class search extends core
 													// Ending the conversation process
 													$context->endConversation();
 
-													// Requesting to enter search name again
-													button_distribution_search::name($context);
+													// Requesting to enter select name again
+													button_distribution_select::name($context);
 												});
 										}
 									} else {
@@ -884,8 +1198,8 @@ final class search extends core
 												// Ending the conversation process
 												$context->endConversation();
 
-												// Requesting to enter search name again
-												button_distribution_search::name($context);
+												// Requesting to enter select name again
+												button_distribution_select::name($context);
 											});
 									}
 								} else {
@@ -899,12 +1213,12 @@ final class search extends core
 											// Ending the conversation process
 											$context->endConversation();
 
-											// Requesting to enter search name again
-											button_distribution_search::name($context);
+											// Requesting to enter select name again
+											button_distribution_select::name($context);
 										});
 								}
 							} else {
-								// Failed to initialize the new search name
+								// Failed to initialize the new select name
 
 								// Sending the message
 								$context->sendMessage('📄 *' . $localization[static::PROCESS . '_name_request_not_acceptable'] . '*')
@@ -914,12 +1228,12 @@ final class search extends core
 										// Ending the conversation process
 										$context->endConversation();
 
-										// Requesting to enter search name again
-										button_distribution_search::name($context);
+										// Requesting to enter select name again
+										button_distribution_select::name($context);
 									});
 							}
 						} else {
-							// Not found started search process
+							// Not found started select process
 
 							// Sending the message
 							$context->sendMessage('⚠️ *' . $localization[static::PROCESS . '_not_started'] . '*')
@@ -963,7 +1277,7 @@ final class search extends core
 	/**
 	 * Location
 	 *
-	 * Write location into the distribution search buffer
+	 * Write location into the distribution select buffer
 	 *
 	 * @param context $context Request data from Telegram
 	 *
@@ -985,11 +1299,11 @@ final class search extends core
 
 				// Reading from the telegram user buffer
 				$context->getUserDataItem(static::PROCESS)
-					->then(function ($search) use ($context, $localization) {
+					->then(function ($select) use ($context, $localization) {
 						// Readed from the telegram user buffer
 
-						if ($search) {
-							// Found started search process
+						if ($select) {
+							// Found started select process
 
 							// Initializing the new location
 							preg_match_all('/(\-?\d{1,2})\.?(\d*)/', $context->getMessage()->getText(), $matches);
@@ -1020,14 +1334,14 @@ final class search extends core
 
 													try {
 														// Initializing the old location
-														$old = str_replace('.', '\\.', (empty($search['location']['latitude']) ? '_' . $localization['empty'] . '_' : $search['location']['latitude']) . ', ' . (empty($search['location']['longitude']) ? '_' . $localization['empty'] . '_' : $search['location']['longitude']));
+														$old = str_replace('.', '\\.', (empty($select['location']['latitude']) ? '_' . $localization['empty'] . '_' : $select['location']['latitude']) . ', ' . (empty($select['location']['longitude']) ? '_' . $localization['empty'] . '_' : $select['location']['longitude']));
 
-														// Writing into the distribution search process buffer
-														$search['location']['latitude'] = $latitude;
-														$search['location']['longitude'] = $longitude;
+														// Writing into the distribution select process buffer
+														$select['location']['latitude'] = $latitude;
+														$select['location']['longitude'] = $longitude;
 
 														// Writing to the telegram user buffer
-														$context->setUserDataItem(static::PROCESS, $search)
+														$context->setUserDataItem(static::PROCESS, $select)
 															->then(function () use ($context, $localization, $latitude, $longitude, $old) {
 																// Writed to the telegram user buffer
 
@@ -1039,7 +1353,7 @@ final class search extends core
 																	->then(function (message $message) use ($context) {
 																		// Sended the message
 
-																		// Sending the distribution search menu
+																		// Sending the distribution select menu
 																		static::menu($context);
 																	});
 															});
@@ -1067,7 +1381,7 @@ final class search extends core
 															$context->endConversation();
 
 															// Requesting to enter locaztion again
-															button_distribution_search::location($context);
+															button_distribution_select::location($context);
 														});
 												}
 											} else {
@@ -1082,7 +1396,7 @@ final class search extends core
 														$context->endConversation();
 
 														// Requesting to enter locaztion again
-														button_distribution_search::location($context);
+														button_distribution_select::location($context);
 													});
 											}
 										} else {
@@ -1097,7 +1411,7 @@ final class search extends core
 													$context->endConversation();
 
 													// Requesting to enter locaztion again
-													button_distribution_search::location($context);
+													button_distribution_select::location($context);
 												});
 										}
 									} else {
@@ -1112,7 +1426,7 @@ final class search extends core
 												$context->endConversation();
 
 												// Requesting to enter locaztion again
-												button_distribution_search::location($context);
+												button_distribution_select::location($context);
 											});
 									}
 								} else {
@@ -1127,7 +1441,7 @@ final class search extends core
 											$context->endConversation();
 
 											// Requesting to send location again
-											button_distribution_search::location($context);
+											button_distribution_select::location($context);
 										});
 								}
 							} else {
@@ -1142,11 +1456,11 @@ final class search extends core
 										$context->endConversation();
 
 										// Requesting to send locaztion again
-										button_distribution_search::location($context);
+										button_distribution_select::location($context);
 									});
 							}
 						} else {
-							// Not found started search process
+							// Not found started select process
 
 							// Sending the message
 							$context->sendMessage('⚠️ *' . $localization[static::PROCESS . '_not_started'] . '*')
@@ -1186,7 +1500,7 @@ final class search extends core
 	/**
 	 * Distance
 	 *
-	 * Write location distance into the distribution search buffer
+	 * Write location distance into the distribution select buffer
 	 *
 	 * @param context $context Request data from Telegram
 	 *
@@ -1208,11 +1522,11 @@ final class search extends core
 
 				// Reading from the telegram user buffer
 				$context->getUserDataItem(static::PROCESS)
-					->then(function ($search) use ($context, $localization) {
+					->then(function ($select) use ($context, $localization) {
 						// Readed from the telegram user buffer
 
-						if ($search) {
-							// Found started search process
+						if ($select) {
+							// Found started select process
 
 							// Initializing the new distance
 							$new = $context->getMessage()->getText();
@@ -1240,22 +1554,22 @@ final class search extends core
 
 											try {
 												// Initializing the old name
-												$old = empty($search['location']['distance']) ? '_' . $localization['empty'] . '_' : $search['location']['distance'];
+												$old = empty($select['location']['distance']) ? '_' . $localization['empty'] . '_' : $select['location']['distance'];
 
-												// Writing into the distribution search process buffer
-												$search['location']['distance'] = $new;
+												// Writing into the distribution select process buffer
+												$select['location']['distance'] = $new;
 
 												// Writing to the telegram user buffer
-												$context->setUserDataItem(static::PROCESS, $search)
+												$context->setUserDataItem(static::PROCESS, $select)
 													->then(function () use ($context, $localization, $new, $old) {
 														// Writed to the telegram user buffer
 
 														// Sending the message
-														$context->sendMessage('✅ *' . $localization[static::PROCESS . '_distance_update_success'] . "* $old \(" . $localization['distribution_search_km'] . '\) ' . " → *$new* \(" . $localization['distribution_search_km'] . '\)')
+														$context->sendMessage('✅ *' . $localization[static::PROCESS . '_distance_update_success'] . "* $old \(" . $localization['distribution_select_km'] . '\) ' . " → *$new* \(" . $localization['distribution_select_km'] . '\)')
 															->then(function (message $message) use ($context) {
 																// Sended the message
 
-																// Sending the distribution search menu
+																// Sending the distribution select menu
 																static::menu($context);
 															});
 													});
@@ -1283,7 +1597,7 @@ final class search extends core
 													$context->endConversation();
 
 													// Requesting to enter distance again
-													button_distribution_search::distance($context);
+													button_distribution_select::distance($context);
 												});
 										}
 									} else {
@@ -1298,7 +1612,7 @@ final class search extends core
 												$context->endConversation();
 
 												// Requesting to enter ditance again
-												button_distribution_search::distance($context);
+												button_distribution_select::distance($context);
 											});
 									}
 								} else {
@@ -1325,7 +1639,7 @@ final class search extends core
 											$context->endConversation();
 
 											// Requesting to enter distance again
-											button_distribution_search::distance($context);
+											button_distribution_select::distance($context);
 										});
 								}
 							} else {
@@ -1340,11 +1654,11 @@ final class search extends core
 										$context->endConversation();
 
 										// Requesting to enter distance again
-										button_distribution_search::distance($context);
+										button_distribution_select::distance($context);
 									});
 							}
 						} else {
-							// Not found started search process
+							// Not found started select process
 
 							// Sending the message
 							$context->sendMessage('⚠️ *' . $localization[static::PROCESS . '_not_started'] . '*')
@@ -1409,46 +1723,8 @@ final class search extends core
 		// Initializing accepting status for the message
 		$recognized = $recognized ? '🪽' : '';
 
-		// Initializing the member model
-		$model_member = new member;
-
-		// Searching for members records
-		$members = $model_member->database->read(
-			filter: fn(record $record) => $record->distribution === $distribution->identifier,
-			amount: DISTRIBUTIONS_SEARCH_MEMBERS_AMOUNT
-		) ?? [];
-
-		// Initializing amount of recognized members for the message
-		$members_recognized = '*' . $localization[static::PROCESS . '_recognized'] . ':* ' . 0;
-
-		// Initializing amount of members for the message
-		$amount = '*' . $localization[static::PROCESS . '_members'] . ':* ' . count(array_filter($members, fn(record $member) => $member?->status === 2));
-
-		// Initializing planners
-		$planners = '*' . $localization[static::PROCESS . '_planners'] . ':* ' . count(array_filter($members, fn(record $member) => $member?->status === 1));
-
-		// Initializing volunteers
-		$volunteers = '*' . $localization[static::PROCESS . '_volunteers'] . ':* ' . 0;
-
-		// Initializing messages
-		$messages = '*' . $localization[static::PROCESS . '_messages'] . ':* ' . 0;
-
-		// Initializing location for the message
-		$location = '*' . $localization[static::PROCESS . '_location'] . ':* ' . str_replace('.', '\\.', (empty($distribution->latitude) ? '_' . $localization['empty'] . '_' : round($distribution->latitude, 6)) . ', ' . (empty($distribution->longitude) ? '_' . $localization['empty'] . '_' : round($distribution->longitude, 6)));
-
 		// Exit (success)
-		return <<<TXT
-			$distribution->identifier *$name* $recognized
-
-			$amount
-			$members_recognized
-			$planners
-			$volunteers
-
-			$messages
-
-			$location
-		TXT;
+		return "$distribution->identifier *$name* $recognized";
 	}
 
 	/**
@@ -1456,159 +1732,20 @@ final class search extends core
 	 *
 	 * Generate inline keyboard for the distribution
 	 *
-	 * @param record $distribution The distribution
-	 * @param record|null $member The distribution member
 	 * @param array $localization The account localization
-	 * @param bool $planned Is the account planned to join to the distribution?
-	 * @param bool $joined Is the account joined to the distribution?
-	 * @param bool $messages Generate messages buttons? (is the account allowed to send messages?)
-	 * @param bool $joins Generate joining buttons? (is the account allowed to join?)
 	 *
 	 * @return array Generated inline keyboard
 	 */
-	public static function keyboard(
-		record $distribution,
-		?record $member,
-		array $localization,
-		bool $messages = false,
-		bool $joins = false,
-	): array {
-		// Initializing the buffer of keyboard 
-		$keyboard = [
+	public static function keyboard(array $localization): array
+	{
+		// Exit (success)
+		return [
 			[
 				[
-					'text' => '🗺 ' . $localization[static::PROCESS . '_button_map'],
-					'web_app' => [
-						/* 'url' => 'https://telegram.map.svoboda.works?distribution=' . $distribution->identifier */
-						'url' => "https://www.openstreetmap.org/#map=12/$distribution->latitude/$distribution->longitude"
-					]
-				]
-			],
-			[
-				/* [
-					'text' => ' ' . $localization[static::PROCESS . '_button_vhod'],
-					'callback_data' => static::PROCESS . '_vhod'
-				], */
-				[
-					'text' => '🤟 ' . $localization[static::PROCESS . '_button_volunteers'],
-					'callback_data' => static::PROCESS . '_volunteers'
-				],
-				[
-					'text' => '🐣 ' . $localization[static::PROCESS . '_button_members'],
-					'callback_data' => static::PROCESS . '_members'
+					'text' => '✅ ' . $localization[static::PROCESS . '_button_select'],
+					'callback_data' => static::PROCESS . '_select'
 				]
 			]
-		]
-			/* [
-				[
-					'text' => ' ' . $localization[static::PROCESS . '_button_telegram'],
-					'url' => 'https://t.me/'
-				],
-			], */;
-
-		if ($joins) {
-			// Requested joining buttons
-
-			if ($member instanceof record) {
-				// Initialized the member
-
-				if ($member->distribution === $distribution->identifier) {
-					// The member distribution matched the distribution
-
-					if ($member->status === 2) {
-						// The member was joined to the distribution
-
-						// Writing the joining buttons into the buffer of keyboard
-						$keyboard[] = [
-							[
-								'text' => '🧳 ' . $localization[static::PROCESS . '_button_leave'],
-								'callback_data' => static::PROCESS . '_leave'
-							]
-						];
-					} else if ($member->status === 1) {
-						// The member was planning to join to the distribution
-
-						// Writing the joining buttons into the buffer of keyboard
-						$keyboard[] = [
-							[
-								'text' => '❌ ' . $localization[static::PROCESS . '_button_unplan'],
-								'callback_data' => static::PROCESS . '_unplan'
-							],
-							[
-								'text' => '🧳 ' . $localization[static::PROCESS . '_button_join'],
-								'callback_data' => static::PROCESS . '_join'
-							]
-						];
-					} else {
-						// The member status is unknown
-
-						// Writing the joining buttons into the buffer of keyboard
-						$keyboard[] = [
-							[
-								'text' => '📅 ' . $localization[static::PROCESS . '_button_plan'],
-								'callback_data' => static::PROCESS . '_plan'
-							],
-							[
-								'text' => '🧳 ' . $localization[static::PROCESS . '_button_join'],
-								'callback_data' => static::PROCESS . '_join'
-							]
-						];
-					}
-				} else {
-					// The member distribution not matched the distribution
-
-					if ($member->status === 2) {
-						// The member was joined to the distribution
-
-					} else if ($member->status === 1) {
-						// The member was planning to join to the distribution
-
-					} else {
-						// The member status is unknown
-
-						// Writing the joining buttons into the buffer of keyboard
-						$keyboard[] = [
-							[
-								'text' => '📅 ' . $localization[static::PROCESS . '_button_plan'],
-								'callback_data' => static::PROCESS . '_plan'
-							],
-							[
-								'text' => '🧳 ' . $localization[static::PROCESS . '_button_join'],
-								'callback_data' => static::PROCESS . '_join'
-							]
-						];
-					}
-				}
-			} else {
-				// Not initialized the member
-
-				// Writing the joining buttons into the buffer of keyboard
-				$keyboard[] = [
-					[
-						'text' => '📅 ' . $localization[static::PROCESS . '_button_plan'],
-						'callback_data' => static::PROCESS . '_plan'
-					],
-					[
-						'text' => '🧳 ' . $localization[static::PROCESS . '_button_join'],
-						'callback_data' => static::PROCESS . '_join'
-					]
-				];
-			}
-		}
-
-		if ($messages) {
-			// Requested messages buttons
-
-			// Writing the messages buttons into the buffer of joinings
-			$keyboard[] = [
-				[
-					'text' => '✉️ ' . $localization[static::PROCESS . '_button_message'],
-					'callback_data' => static::PROCESS . '_message'
-				]
-			];
-		}
-
-		// Exit (success)
-		return $keyboard;
+		];
 	}
 }

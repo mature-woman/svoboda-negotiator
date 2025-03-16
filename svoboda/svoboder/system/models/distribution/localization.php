@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace svoboda\svoboder\models;
+namespace svoboda\svoboder\models\distribution;
 
 // Files of the project
 use svoboda\svoboder\models\core,
-	svoboda\svoboder\models\distribution\localization,
-	svoboda\svoboder\models\distribution\message;
+	svoboda\svoboder\models\enumerations\language;
 
 // Svoboda time
 use svoboda\time\statement as svoboda;
@@ -27,21 +26,21 @@ use Exception as exception,
 	RuntimeException as exception_runtime;
 
 /**
- * Distribution
+ * Localization
  *
- * @package svoboda\svoboder\models
+ * @package svoboda\svoboder\models\distributions
  *
  * @license http://www.wtfpl.net/ Do What The Fuck You Want To Public License
  * @author Arsen Mirzaev Tatyano-Muradovich <arsen@mirzaev.sexy>
  */
-final class distribution extends core
+final class localization extends core
 {
 	/**
 	 * File
 	 *
 	 * @var string $database Path to the database file
 	 */
-	protected string $file = DATABASES . DIRECTORY_SEPARATOR . 'distributions.baza';
+	protected string $file = DATABASES . DIRECTORY_SEPARATOR . 'distributions' . DIRECTORY_SEPARATOR . 'localizations.baza';
 
 	/**
 	 * Database
@@ -49,20 +48,6 @@ final class distribution extends core
 	 * @var database $database The database
 	 */
 	public protected(set) database $database;
-
-	/**
-	 * Localization
-	 *
-	 * @var localization $localization The localizations implementator
-	 */
-	public protected(set) localization $localization;
-
-	/**
-	 * Message
-	 *
-	 * @var localization $localization The messages implementator
-	 */
-	public protected(set) message $message;
 
 	/**
 	 * Constructor
@@ -73,36 +58,30 @@ final class distribution extends core
 	{
 		// Initializing the database
 		$this->database = new database()
-			->encoding(encoding::ascii)
+			->encoding(encoding::utf8)
 			->columns(
 				new column('identifier', type::integer_unsigned),
-				new column('creator', type::integer_unsigned),
-				new column('latitude', type::float),
-				new column('longitude', type::float),
+				new column('distribution', type::integer_unsigned),
+				new column('language', type::string, ['length' => 2]),
+				new column('name', type::string, ['length' => 64]),
 				new column('updated', type::integer_unsigned),
 				new column('created', type::integer_unsigned)
 			)
 			->connect($this->file);
-
-		// Initializing the localizations implementator
-		$this->localization = new localization;
-	
-		// Initializing the messages implementator
-		$this->message = new message;
 	}
 
 	/**
 	 * Create
 	 *
-	 * Creates the distribution record in the database
+	 * Creates the distribution localization record in the database
 	 *
-	 * @param int $creator Identifier of the creator account
-	 * @param float $latitude Latitude
-	 * @param float $longitude Longitude
+	 * @param int $distribution Identifier of the distribution
+	 * @param language $language Language
+	 * @param string $name Name of the distribution
 	 *
 	 * @return int|false The record identifier, if created
 	 */
-	public function create(int $creator, float $latitude = 0, float $longitude = 0): int|false
+	public function create(int $distribution, language $language, string $name): int|false
 	{
 		// Initializing the identifier
 		$identifier = $this->database->count() + 1;
@@ -110,9 +89,9 @@ final class distribution extends core
 		// Initializing the record
 		$record = $this->database->record(
 			$identifier,
-			$creator,
-			$latitude,
-			$longitude,
+			$distribution,
+			$language->name,
+			$name,
 			svoboda::timestamp(),
 			svoboda::timestamp()
 		);
