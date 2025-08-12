@@ -1,7 +1,7 @@
 {
-	"name": "svoboda/svoboder",
+	"name": "svoboda/antivertical",
 	"description": "Svoboda Telegram chat-robot",
-	"homepage": "https://git.svoboda.works/svoboda/svoboder",
+	"homepage": "https://git.svoboda.works/svoboda/antivertical",
 	"type": "chat-robot",
 	"keywords": [
 		"svoboda",
@@ -21,13 +21,13 @@
 		}
 	],
 	"support": {
-		"wiki": "https://git.svoboda.works/svoboda/svoboder/wiki",
-		"issues": "https://git.svoboda.works/svoboda/svoboder/issues"
+		"wiki": "https://git.svoboda.works/svoboda/antivertical/wiki",
+		"issues": "https://git.svoboda.works/svoboda/antivertical/issues"
 	},
 	"require": {
 		"php": "^8.4",
-		"mirzaev/minimal": "^3.4.0",
-		"mirzaev/baza": "^3.1.0",
+		"mirzaev/minimal": "^3.6.2",
+		"mirzaev/baza": "^3.4",
 		"svoboda/time": "^1.0",
 		"badfarm/zanzara": "^0.9.1",
 		"react/filesystem": "^0.1.2",
@@ -35,12 +35,12 @@
 	},
 	"autoload": {
 		"psr-4": {
-			"svoboda\\svoboder\\": "svoboda/svoboder/system"
+			"svoboda\\antivertical\\": "svoboda/antivertical/system"
 		}
 	},
 	"autoload-dev": {
 		"psr-4": {
-			"svoboda\\svoboder\\tests\\": "svoboda/svoboder/tests"
+			"svoboda\\antivertical\\tests\\": "svoboda/antivertical/tests"
 		}
 	},
 	"scripts": {
